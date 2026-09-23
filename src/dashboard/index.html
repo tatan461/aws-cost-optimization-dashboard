@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AWS Cost Optimization Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>AWS Cost Optimization Dashboard</h1>
+    <p id="generated-at">Loading report...</p>
+  </header>
+
+  <main>
+    <section class="summary-cards">
+      <div class="card">
+        <h2>Forecasted spend (this month)</h2>
+        <p id="forecast-amount" class="big-number">--</p>
+      </div>
+      <div class="card">
+        <h2>Compute Optimizer status</h2>
+        <p id="co-status" class="big-number">--</p>
+      </div>
+      <div class="card">
+        <h2>Potential monthly savings</h2>
+        <p id="total-savings" class="big-number">--</p>
+      </div>
+    </section>
+
+    <section class="chart-section">
+      <h2>Daily cost (last 30 days)</h2>
+      <canvas id="dailyCostChart"></canvas>
+    </section>
+
+    <section class="chart-section">
+      <h2>Top 10 services by cost</h2>
+      <canvas id="topServicesChart"></canvas>
+    </section>
+
+    <section class="table-section">
+      <h2>EC2 rightsizing recommendations</h2>
+      <table id="rightsizing-table">
+        <thead>
+          <tr>
+            <th>Instance</th>
+            <th>Current type</th>
+            <th>Recommended type</th>
+            <th>Est. monthly savings</th>
+            <th>Finding</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <p class="empty-state" id="rightsizing-empty" hidden>No rightsizing recommendations available yet.</p>
+    </section>
+
+    <section class="table-section">
+      <h2>Graviton migration candidates</h2>
+      <table id="graviton-table">
+        <thead>
+          <tr>
+            <th>Instance</th>
+            <th>Current type</th>
+            <th>Recommended type</th>
+            <th>Finding</th>
+            <th>Est. monthly savings</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <p class="empty-state" id="graviton-empty" hidden>No Graviton migration candidates found yet.</p>
+    </section>
+
+    <section class="table-section">
+      <h2>Idle / over-provisioned Lambda functions</h2>
+      <table id="lambda-table">
+        <thead>
+          <tr>
+            <th>Function</th>
+            <th>Current memory (MB)</th>
+            <th>Finding</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <p class="empty-state" id="lambda-empty" hidden>No idle Lambda functions detected yet.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Data refreshed daily via an EventBridge Scheduler-triggered Lambda reading AWS Cost Explorer and Compute Optimizer. Infrastructure defined with Terraform.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
