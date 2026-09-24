@@ -34,8 +34,8 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
       variable = "token.actions.githubusercontent.com:sub"
       values = [
         "repo:${var.github_repo}:*",
-        "repo:${var.github_owner_id}/${var.github_repo_id}:*",
-      ]
+        "repo:tatan461@${var.github_owner_id}/aws-cost-optimization-dashboard@${var.github_repo_id}:*",
+    ]
     }
   }
 }
