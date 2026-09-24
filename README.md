@@ -4,7 +4,7 @@
 
 **A serverless AWS FinOps dashboard for cost visibility and optimization insights.**
 
-[Live Demo](https://d76jvyk0p329e.cloudfront.net) · [Architecture](#architecture) · [Deployment](#deployment) · [Project Structure](#project-structure)
+[Live Demo](https://d76jvyk0p329e.cloudfront.net) · [Architecture](#architecture) · [Features](#features) · [Deployment](#deployment) · [Project Structure](#project-structure)
 
 ![AWS](https://img.shields.io/badge/Cloud-AWS-232F3E?logo=amazonaws&logoColor=white)
 ![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC?logo=terraform&logoColor=white)
@@ -28,15 +28,23 @@
 
 ## Overview
 
-This project is a serverless AWS cost-optimization dashboard built to provide practical visibility into cloud spending and optimization opportunities. It combines **AWS Cost Explorer** and **AWS Compute Optimizer** data to surface forecasted spend, daily cost trends, service-level costs, EC2 rightsizing recommendations, Graviton migration candidates, and idle or over-provisioned Lambda findings — all without running a single persistent server.
+This project is a serverless AWS cost-optimization dashboard built to provide practical visibility into cloud spending and optimization opportunities. It combines **AWS Cost Explorer** and **AWS Compute Optimizer** data to surface forecasted spend, daily cost trends, service-level costs, EC2 rightsizing recommendations, Graviton migration candidates, and idle or over-provisioned Lambda findings — all without running a persistent server.
 
-The architecture is intentionally lightweight: **EventBridge Scheduler** invokes a Lambda collector once per day, the collector writes a JSON data file to **Amazon S3**, and a static frontend reads and renders that data through **Amazon CloudFront**.
+The architecture is intentionally lightweight: **Amazon EventBridge Scheduler** invokes a Lambda collector once per day, the collector writes a JSON data file to **Amazon S3**, and a static frontend reads and renders that data through **Amazon CloudFront**.
 
-This project was built to demonstrate applied FinOps automation: reading real AWS billing and optimization APIs, transforming that data, and delivering it through a fully serverless, Infrastructure-as-Code pipeline with zero-downtime CI/CD.
+This project demonstrates applied FinOps automation: integrating AWS billing and optimization APIs, transforming operational data, and delivering it through a serverless Infrastructure-as-Code pipeline with short-lived CI/CD credentials.
+
+## Why this project
+
+Cloud costs are easy to accumulate and difficult to interpret without a consolidated view. This dashboard turns billing and optimization APIs into a small, automated operational surface that helps answer three practical questions:
+
+- What is the account spending and how is that trend changing?
+- Which AWS services contribute most to current spend?
+- Where might rightsizing or workload optimization be possible?
 
 ## See it in action
 
-The dashboard is deployed publicly and renders live AWS account data.
+The dashboard is publicly deployed and renders account-specific AWS data.
 
 ### Dashboard preview
 
@@ -44,15 +52,15 @@ The dashboard is deployed publicly and renders live AWS account data.
 
 ### Example results
 
-Snapshot from a recent run — values are account- and date-specific and change as AWS billing data updates:
+Snapshot from a recent run. Values are account- and date-specific and change as AWS billing data updates.
 
 | Metric | Value |
 |---|---|
 | Forecasted spend (current month) | `$7.17` |
 | Compute Optimizer status | `Active` |
-| Potential monthly savings | `$0.00` (no recommendations yet available) |
+| Potential monthly savings | `$0.00` (no recommendations available in the snapshot) |
 | Top service-level cost category | `EC2 - Other` |
-| Empty recommendation handling | Verified — no failures on empty datasets |
+| Empty recommendation handling | Verified — the dashboard renders safely without recommendations |
 
 ## Architecture
 
@@ -60,12 +68,12 @@ Snapshot from a recent run — values are account- and date-specific and change 
 
 ### Flow summary
 
-- **Deployment** — GitHub Actions authenticates to AWS with OpenID Connect (OIDC) and runs Terraform without storing long-lived AWS access keys.
+- **Deployment** — GitHub Actions authenticates to AWS with OpenID Connect (OIDC) and runs Terraform without long-lived AWS access keys.
 - **Scheduling** — Amazon EventBridge Scheduler invokes the collector Lambda once per day.
 - **Collection** — Lambda queries Cost Explorer for daily cost, service-level spend, and the monthly forecast.
 - **Optimization** — Lambda queries Compute Optimizer for EC2 rightsizing, Graviton, and Lambda optimization findings when available.
 - **Storage** — The collector writes generated dashboard data to Amazon S3.
-- **Delivery** — CloudFront serves the static dashboard and its generated data securely over HTTPS.
+- **Delivery** — CloudFront serves the static dashboard and generated data over HTTPS.
 
 ## Main components
 
@@ -79,7 +87,7 @@ Snapshot from a recent run — values are account- and date-specific and change 
 | AWS Compute Optimizer | Supplies EC2 rightsizing, Graviton, and Lambda optimization findings. |
 | Amazon S3 | Stores the static frontend and generated dashboard JSON. |
 | Amazon CloudFront | Delivers the dashboard globally over HTTPS. |
-| Terraform | Defines all cloud infrastructure as code, including remote state backend. |
+| Terraform | Defines cloud infrastructure as code, including the remote state backend. |
 
 ## Features
 
@@ -92,7 +100,7 @@ Snapshot from a recent run — values are account- and date-specific and change 
 - Idle or over-provisioned Lambda findings.
 - Safe empty states for accounts without recommendations.
 - Automated daily data refresh.
-- Infrastructure as Code with Terraform, including a dedicated remote state backend.
+- Terraform-managed infrastructure across separate backend, dashboard, and collector stacks.
 - CI/CD with GitHub Actions and AWS OIDC authentication.
 
 ## Deployment
@@ -101,12 +109,12 @@ The repository contains three Terraform stacks:
 
 ```text
 infra/
-├── backend/     # Remote state backend (S3 + locking) for Terraform
+├── backend/     # Remote Terraform state backend
 ├── dashboard/   # S3 and CloudFront static dashboard infrastructure
 └── collector/   # Lambda collector and EventBridge Scheduler infrastructure
 ```
 
-On a push to `main` that changes `infra/`, `src/`, or `.github/workflows/deploy.yml`, GitHub Actions performs the following:
+On a push to `main` that changes `infra/`, `src/`, or `.github/workflows/deploy.yml`, GitHub Actions:
 
 1. Checks out the repository.
 2. Configures short-lived AWS credentials through GitHub OIDC.
@@ -115,7 +123,7 @@ On a push to `main` that changes `infra/`, `src/`, or `.github/workflows/deploy.
 5. Retrieves the dashboard bucket name as a Terraform output.
 6. Plans and applies the collector stack with that bucket name.
 
-The workflow needs only these GitHub permissions:
+The workflow requests only these GitHub permissions:
 
 ```yaml
 permissions:
@@ -132,7 +140,7 @@ permissions:
 - AWS Cost Explorer enabled in the target account.
 - AWS Compute Optimizer enabled to receive optimization recommendations.
 
-### Deploy the backend (remote state)
+### Deploy the backend
 
 ```bash
 cd infra/backend
@@ -185,11 +193,20 @@ terraform apply -var="dashboard_bucket_name=<your-dashboard-bucket-name>"
 └── README.md
 ```
 
-## Validation and notes
+## Security and operational notes
 
-The deployed dashboard has been validated using real AWS account data: Cost Explorer data is displayed, a monthly forecast renders successfully, service-level costs appear in the dashboard, and Compute Optimizer reports an `Active` status.
+- GitHub Actions uses OIDC with short-lived AWS credentials instead of stored access keys.
+- Keep Terraform state protected and never commit local state files, plans, credentials, or generated secrets.
+- Apply least-privilege IAM policies when adapting the project to another account.
+- Configure AWS Budgets and billing alerts before using the dashboard in a production environment.
+- The public demo is intended for portfolio and educational purposes; do not expose sensitive account data without reviewing the distribution model.
 
-Compute Optimizer may not return rightsizing or Graviton recommendations immediately. It needs enough sustained workload metrics to generate findings, so no recommendations is an expected result for new, low-traffic, or lightly used environments.
+## Limitations
+
+- Cost Explorer data can have reporting and forecast delays.
+- Compute Optimizer recommendations depend on enrollment and sufficient workload telemetry.
+- Empty recommendation datasets are expected for new, low-traffic, or lightly used environments.
+- The example values above are a dated snapshot and should not be interpreted as current account totals.
 
 ## Cost considerations
 
@@ -200,7 +217,7 @@ The design keeps operational overhead low:
 - Lambda execution is short-lived.
 - The generated JSON data is small.
 
-Actual charges depend on account usage and AWS service pricing, including Cost Explorer, CloudFront, S3, Lambda, and any resources being monitored. Configure AWS Budgets and billing alerts before using this in a production environment.
+Actual charges depend on account usage and AWS service pricing, including Cost Explorer, CloudFront, S3, Lambda, and monitored resources.
 
 ## Technologies
 
@@ -214,7 +231,7 @@ Actual charges depend on account usage and AWS service pricing, including Cost E
 
 This project complements my [Cloud Resume Challenge + AI (Bedrock)](https://github.com/tatan461/cloud-resume-challenge).
 
-Together, these two projects demonstrate:
+Together, these projects demonstrate:
 
 - Serverless AWS architecture designed for low operational overhead.
 - Infrastructure as Code with Terraform across multiple independent stacks.
@@ -223,7 +240,10 @@ Together, these two projects demonstrate:
 
 ## Author
 
-**Jonathan Angel Gonzalez** ([@tatan461](https://github.com/tatan461))
+**Jonathan Angel Gonzalez**
+
+[![GitHub](https://img.shields.io/badge/GitHub-tatan461-181717?logo=github&logoColor=white)](https://github.com/tatan461)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Jonathan%20Angel%20Gonzalez-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/jonathan-angel-gonzalez-0543b441a/)
 
 ## License
 
