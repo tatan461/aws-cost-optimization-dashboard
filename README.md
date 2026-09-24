@@ -227,4 +227,8 @@ Together, these two projects demonstrate:
 
 ## License
 
+<<<<<<< Updated upstream
 This project is licensed under the [MIT License](LICENSE).
+=======
+This project is licensed under the [MIT License](LICENSE).
+>>>>>>> Stashed changes
