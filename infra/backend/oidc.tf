@@ -23,10 +23,19 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
       values   = ["sts.amazonaws.com"]
     }
 
+    # GitHub repositories created on/after 2026-07-15 emit an immutable
+    # "sub" claim that embeds numeric owner/repo IDs
+    # (repo:owner@<owner_id>/repo@<repo_id>:*) instead of the classic
+    # name-only form (repo:owner/repo:*). We accept both formats here so
+    # the trust policy keeps working regardless of which one GitHub issues
+    # for this repository.
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:*"]
+      values = [
+        "repo:${var.github_repo}:*",
+        "repo:${var.github_owner_id}/${var.github_repo_id}:*",
+      ]
     }
   }
 }
